@@ -9,8 +9,9 @@ type ElementI interface {
 	EventTargetI
 	RemoveAllEventListeners()
 
-	// node
 	Underlying() ValueI
+
+	// node
 	BaseURI() string
 	ChildNodes() []ElementI
 	FirstChild() ElementI
@@ -26,7 +27,7 @@ type ElementI interface {
 	SetTextContent(string)
 	AppendChild(ElementI) ElementI
 	NewChild(typ string) ElementI
-	Clone(deep bool) ElementI
+	Clone(deep bool) ElementI // https://developer.mozilla.org/en-US/docs/Web/API/Node/cloneNode
 	CompareDocumentPosition(ElementI) int
 	Contains(ElementI) bool
 	HasChildNodes() bool
@@ -44,16 +45,16 @@ type ElementI interface {
 	ID() string
 	SetID(string)
 	TagName() string
-	GetAttribute(string) string
+	GetAttribute(name string) string
 	GetBoundingClientRect() RectI
 	GetElementsByClassName(string) []ElementI
 	GetElementsByTagName(string) []ElementI
-	HasAttribute(string) bool
+	HasAttribute(name string) bool // https://developer.mozilla.org/en-US/docs/Web/API/Element/hasAttribute
 	Matches(string) bool
 	QuerySelector(string) ElementI
 	QuerySelectorAll(string) []ElementI
 	Remove()
-	RemoveAttribute(string)
+	RemoveAttribute(name string)
 	SetAttribute(name string, value string)
 	InnerHTML() string
 	SetInnerHTML(string)
@@ -61,31 +62,22 @@ type ElementI interface {
 	SetOuterHTML(string)
 
 	// HTML Element
-	AccessKey() string
-	Dataset() map[string]string
-	SetAccessKey(string)
-	AccessKeyLabel() string
-	SetAccessKeyLabel(string)
 	ContentEditable() string
 	SetContentEditable(string)
 	IsContentEditable() bool
-	Dir() string
-	SetDir(string)
 	Draggable() bool
 	SetDraggable(bool)
-	Lang() string
-	SetLang(string)
 	OffsetHeight() float64
 	OffsetLeft() float64
 	OffsetParent() ElementI
 	OffsetTop() float64
 	OffsetWidth() float64
-	Style() CSSStyleI
-	Title() string
-	SetTitle(string)
-	Blur()
-	Click()
-	Focus()
+	Style() CSSStyleI // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/style
+	Title() string    // for tooltip : https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/title
+	SetTitle(string)  // for tooltip : https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/title
+	Blur()            // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/blur
+	Click()           // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/click
+	Focus()           // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus
 }
 
 type idMakerT struct {
@@ -393,6 +385,9 @@ func (e *elementS) SetOuterHTML(s string) {
 	e.Set("outerHTML", s)
 }
 
+////
+////
+
 func (s *elementS) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
 	ret := s.ValueI.AddEventListener(typ, useCapture, listener)
 	s.eventListeners[ret.GetID()] = ret
@@ -417,45 +412,6 @@ func (s *elementS) DispatchEvent(event EventI) bool {
 /////
 /////
 
-func (e *elementS) AccessKey() string {
-	return e.Get("accessKey").String()
-}
-
-func (e *elementS) Dataset() map[string]string {
-	o := e.Get("dataset")
-	data := map[string]string{}
-	keys := jsKeys(o)
-	for _, key := range keys {
-		data[key] = o.Get(key).String()
-	}
-	return data
-}
-
-// jsKeys returns the keys of the given JavaScript object.
-func jsKeys(o ValueI) []string {
-	if o.IsNull() || o.IsUndefined() {
-		return nil
-	}
-	a := Window.Underlying().Get("Object").Call("keys", o)
-	s := make([]string, a.Length())
-	for i := 0; i < a.Length(); i++ {
-		s[i] = a.Index(i).String()
-	}
-	return s
-}
-
-func (e *elementS) SetAccessKey(s string) {
-	e.Set("accessKey", s)
-}
-
-func (e *elementS) AccessKeyLabel() string {
-	return e.Get("accessKeyLabel").String()
-}
-
-func (e *elementS) SetAccessKeyLabel(s string) {
-	e.Set("accessKeyLabel", s)
-}
-
 func (e *elementS) ContentEditable() string {
 	return e.Get("contentEditable").String()
 }
@@ -468,28 +424,12 @@ func (e *elementS) IsContentEditable() bool {
 	return e.Get("isContentEditable").Bool()
 }
 
-func (e *elementS) Dir() string {
-	return e.Get("dir").String()
-}
-
-func (e *elementS) SetDir(s string) {
-	e.Set("dir", s)
-}
-
 func (e *elementS) Draggable() bool {
 	return e.Get("draggable").Bool()
 }
 
 func (e *elementS) SetDraggable(b bool) {
 	e.Set("draggable", b)
-}
-
-func (e *elementS) Lang() string {
-	return e.Get("lang").String()
-}
-
-func (e *elementS) SetLang(s string) {
-	e.Set("lang", s)
 }
 
 func (e *elementS) OffsetHeight() float64 {

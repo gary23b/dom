@@ -4,9 +4,10 @@ type WindowI interface {
 	EventTargetI
 
 	Underlying() ValueI
+
 	Document() DocumentI
-	FrameElement() ElementI
-	Location() LocationI
+	FrameElement() ElementI // https://developer.mozilla.org/en-US/docs/Web/API/Window/frameElement
+	Location() LocationI    // https://developer.mozilla.org/en-US/docs/Web/API/Window/location
 	Name() string
 	SetName(string)
 	InnerHeight() int
@@ -27,8 +28,7 @@ type WindowI interface {
 	Screen() ScreenI
 	Alert(string)
 	Back()
-	Blur()
-	Close()
+	Close() // https://developer.mozilla.org/en-US/docs/Web/API/Window/close
 	Confirm(string) bool
 	Focus()
 	Forward()
@@ -181,8 +181,7 @@ func (w *window) Top() WindowI {
 }
 
 func (w *window) History() HistoryI {
-	// FIXME implement
-	return nil
+	panic("not implemented")
 }
 
 func (w *window) Screen() ScreenI {
@@ -195,10 +194,6 @@ func (w *window) Alert(msg string) {
 
 func (w *window) Back() {
 	w.Call("back")
-}
-
-func (w *window) Blur() {
-	w.Call("blur")
 }
 
 func (w *window) Close() {

@@ -2,32 +2,32 @@ package dom
 
 import "time"
 
+// https://developer.mozilla.org/en-US/docs/Web/API/Document/activeElement
 type DocumentI interface {
-	DocumentElement() ElementI
-	DocumentURI() string
-	CreateElement(name string) ElementI
-	ElementFromPoint(x, y int) ElementI
-	EnableStyleSheetsForSet(name string)
-	GetElementsByClassName(name string) []ElementI
-	GetElementsByTagName(name string) []ElementI
-	GetElementByID(id string) ElementI
-	QuerySelector(sel string) ElementI
-	QuerySelectorAll(sel string) []ElementI
+	EventTargetI
+
+	Underlying() ValueI
+
+	DocumentURI() string                           // https://developer.mozilla.org/en-US/docs/Web/API/Document/documentURI
+	CreateElement(name string) ElementI            // https://developer.mozilla.org/en-US/docs/Web/API/Document/createElement
+	ElementFromPoint(x, y int) ElementI            // https://developer.mozilla.org/en-US/docs/Web/API/Document/elementFromPoint
+	GetElementsByClassName(name string) []ElementI // https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementsByClassName
+	GetElementsByTagName(name string) []ElementI   // https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementsByTagName
+	GetElementByID(id string) ElementI             // https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementById
+	QuerySelector(sel string) ElementI             // https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector
+	QuerySelectorAll(sel string) []ElementI        // https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll
 
 	// HTMLDocument
-	ActiveElement() ElementI
-	Body() ElementI
-	Cookie() string
-	SetCookie(string)
-	Domain() string
-	SetDomain(string)
-	LastModified() time.Time
-	Links() []ElementI
-	ReadyState() string
-	Referrer() string
-	Title() string
-	SetTitle(string)
-	URL() string
+	ActiveElement() ElementI // https://developer.mozilla.org/en-US/docs/Web/API/Document/activeElement
+	Body() ElementI          // https://developer.mozilla.org/en-US/docs/Web/API/Document/body
+	Cookie() string          // https://developer.mozilla.org/en-US/docs/Web/API/Document/cookie
+	SetCookie(string)        // https://developer.mozilla.org/en-US/docs/Web/API/Document/cookie
+	LastModified() time.Time // https://developer.mozilla.org/en-US/docs/Web/API/Document/lastModified
+	ReadyState() string      // https://developer.mozilla.org/en-US/docs/Web/API/Document/readyState
+	Referrer() string        // https://developer.mozilla.org/en-US/docs/Web/API/Document/referrer
+	Title() string           // https://developer.mozilla.org/en-US/docs/Web/API/Document/title
+	SetTitle(string)         // https://developer.mozilla.org/en-US/docs/Web/API/Document/titleq
+	URL() string             // https://developer.mozilla.org/en-US/docs/Web/API/Document/URL
 }
 
 type documentS struct {
@@ -45,43 +45,12 @@ func NewDocument(val ValueI) *documentS {
 	return ret
 }
 
-func (d *documentS) Async() bool {
-	return d.Get("async").Bool()
-}
-
-func (d *documentS) SetAsync(b bool) {
-	d.Set("async", b)
-}
-
-func (d *documentS) DocumentElement() ElementI {
-	val := d.Get("documentElement")
-	return NewElement(val)
+func (s *documentS) Underlying() ValueI {
+	return s.ValueI
 }
 
 func (d *documentS) DocumentURI() string {
 	return d.Get("documentURI").String()
-}
-
-func (d documentS) LastStyleSheetSet() string {
-	return d.Get("lastStyleSheetSet").String()
-}
-
-func (d documentS) PreferredStyleSheetSet() string {
-	return d.Get("preferredStyleSheetSet").String()
-}
-
-func (d documentS) SelectedStyleSheetSet() string {
-	return d.Get("selectedStyleSheetSet").String()
-}
-
-func (d documentS) AdoptNode(node ElementI) ElementI {
-	val := d.Call("adoptNode", node.Underlying())
-	return NewElement(val)
-}
-
-func (d documentS) ImportNode(node ElementI, deep bool) ElementI {
-	val := d.Call("importNode", node.Underlying(), deep)
-	return NewElement(val)
 }
 
 func (d documentS) CreateElement(name string) ElementI {
@@ -90,10 +59,6 @@ func (d documentS) CreateElement(name string) ElementI {
 
 func (d documentS) ElementFromPoint(x, y int) ElementI {
 	return NewElement(d.Call("elementFromPoint", x, y))
-}
-
-func (d documentS) EnableStyleSheetsForSet(name string) {
-	d.Call("enableStyleSheetsForSet", name)
 }
 
 func (d documentS) GetElementsByClassName(name string) []ElementI {
@@ -116,6 +81,10 @@ func (d documentS) QuerySelectorAll(sel string) []ElementI {
 	return d.ElementI.QuerySelectorAll(sel)
 }
 
+////
+////
+////
+
 func (s *documentS) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
 	return s.ValueI.AddEventListener(typ, useCapture, listener)
 }
@@ -127,6 +96,10 @@ func (s *documentS) RemoveEventListener(listener EventListenerI) {
 func (s *documentS) DispatchEvent(event EventI) bool {
 	return s.ValueI.DispatchEvent(event)
 }
+
+////
+////
+////
 
 func (s *documentS) ActiveElement() ElementI {
 	return NewElement(s.Get("activeElement"))
@@ -144,43 +117,8 @@ func (s *documentS) SetCookie(in string) {
 	s.Set("cookie", in)
 }
 
-func (s *documentS) DefaultView() WindowI {
-	return &window{s.Get("defaultView")}
-}
-
-func (s *documentS) DesignMode() bool {
-	val := s.Get("designMode").String()
-	return val != "off"
-}
-
-func (s *documentS) SetDesignMode(b bool) {
-	val := "off"
-	if b {
-		val = "on"
-	}
-	s.Set("designMode", val)
-}
-
-func (s *documentS) Domain() string {
-	return s.Get("domain").String()
-}
-
-func (s *documentS) SetDomain(in string) {
-	s.Set("domain", in)
-}
-
 func (s *documentS) LastModified() time.Time {
 	return time.Unix(0, int64(s.Get("lastModified").Call("getTime").Int())*1000000)
-}
-
-func (s *documentS) Links() []ElementI {
-	var els []ElementI
-	links := s.Get("links")
-	length := links.Get("length").Int()
-	for i := 0; i < length; i++ {
-		els = append(els, NewElement(links.Call("item", i)))
-	}
-	return els
 }
 
 func (s *documentS) ReadyState() string {

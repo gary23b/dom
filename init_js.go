@@ -2,7 +2,9 @@
 
 package dom
 
-import "syscall/js"
+import (
+	"syscall/js"
+)
 
 var Window WindowI
 var Doc DocumentI

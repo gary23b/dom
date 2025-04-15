@@ -187,7 +187,7 @@ func (s valueS) AddEventListener(typ string, useCapture bool, listener func(Even
 
 func (s valueS) RemoveEventListener(listener EventListenerI) {
 	fn := listener.Underlying()
-	value := fn.(*funcS)
+	value := fn.(funcS)
 	s.Call("removeEventListener", listener.GetType(), value.Func, listener.GetCapture())
 	fn.Release()
 }
