@@ -3,18 +3,15 @@
 package dom
 
 var Window WindowI
+var Doc DocumentI
+var Body ElementI
 
 func init() {
 	Window = &window{
 		ValueI: valueS{jsValue: "window"},
 	}
-}
 
-var Doc DocumentI
+	Doc = Window.Document()
 
-func init() {
-	window := &window{
-		ValueI: valueS{jsValue: "window"},
-	}
-	Doc = window.Document()
+	Body = Doc.Body()
 }

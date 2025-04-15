@@ -5,18 +5,15 @@ package dom
 import "syscall/js"
 
 var Window WindowI
+var Doc DocumentI
+var Body ElementI
 
 func init() {
 	Window = &window{
 		ValueI: NewValue(js.Global()),
 	}
-}
 
-var Doc DocumentI
+	Doc = Window.Document()
 
-func init() {
-	window := &window{
-		ValueI: NewValue(js.Global()),
-	}
-	Doc = window.Document()
+	Body = Doc.Body()
 }

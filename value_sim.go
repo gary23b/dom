@@ -134,12 +134,12 @@ func (s valueS) InstanceOf(t ValueI) bool {
 }
 
 // Add an event listener to things that can do that such as the window and html elements
-func (s valueS) AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI {
+func (s valueS) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
 	return nil
 }
 
 // remove an event listener to things that they have been added to before
-func (s valueS) RemoveEventListener(typ string, useCapture bool, listener FuncI) {
+func (s valueS) RemoveEventListener(listener EventListenerI) {
 
 }
 

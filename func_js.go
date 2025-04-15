@@ -2,7 +2,9 @@
 
 package dom
 
-import "syscall/js"
+import (
+	"syscall/js"
+)
 
 type funcS struct {
 	js.Func
@@ -44,7 +46,7 @@ func NewFuncForJavascript(fn func(this ValueI, args []ValueI) any) funcS {
 		}
 
 		result := fn(thisConverted, argsConverted)
-		return ValueOf(result)
+		return ValueOf(result).jsValue
 	})
 
 	ret := funcS{

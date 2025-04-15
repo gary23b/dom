@@ -1,9 +1,43 @@
 package dom
 
-type ElementI interface {
-	NodeI
-	ChildNodeI
+import (
+	"fmt"
+	"sync"
+)
 
+type ElementI interface {
+	EventTargetI
+	RemoveAllEventListeners()
+
+	// node
+	Underlying() ValueI
+	BaseURI() string
+	ChildNodes() []ElementI
+	FirstChild() ElementI
+	LastChild() ElementI
+	NextSibling() ElementI
+	NodeName() string
+	NodeType() int
+	NodeValue() string
+	SetNodeValue(string)
+	ParentNode() ElementI
+	PreviousSibling() ElementI
+	TextContent() string
+	SetTextContent(string)
+	AppendChild(ElementI) ElementI
+	NewChild(typ string) ElementI
+	Clone(deep bool) ElementI
+	CompareDocumentPosition(ElementI) int
+	Contains(ElementI) bool
+	HasChildNodes() bool
+	InsertBefore(which ElementI, before ElementI)
+	IsEqualNode(ElementI) bool
+	LookupPrefix() string
+	Normalize()
+	RemoveChild(ElementI)
+	ReplaceChild(newChild, oldChild ElementI)
+
+	// element
 	Attributes() map[string]string
 	Class() TokenListI
 	Closest(string) ElementI
@@ -54,34 +88,201 @@ type ElementI interface {
 	Focus()
 }
 
-type CSSStyleI interface {
-	ToMap() map[string]string
-	RemoveProperty(name string)
-	GetPropertyValue(name string) string
-	GetPropertyPriority(name string) string
-	SetProperty(name, value, priority string)
-	Index(idx int) string
-	Length() int
+type idMakerT struct {
+	mutex     sync.Mutex
+	idCounter int
+}
+
+// Make a global ID maker that can dispense IDs
+var idMaker idMakerT
+
+func GetNextID() string {
+	idMaker.mutex.Lock()
+	defer idMaker.mutex.Unlock()
+
+	newID := fmt.Sprintf("id_%06d", idMaker.idCounter)
+	idMaker.idCounter++
+	return newID
 }
 
 type elementS struct {
 	ValueI
-	NodeI
+	id             string
+	children       map[string]ElementI
+	eventListeners map[string]EventListenerI
 }
 
 var _ ElementI = &elementS{}
 
 func NewElement(val ValueI) *elementS {
 	ret := &elementS{
-		ValueI: val,
-		NodeI:  &nodeS{ValueI: val},
+		ValueI:         val,
+		eventListeners: map[string]EventListenerI{},
+		id:             GetNextID(),
+		children:       map[string]ElementI{},
 	}
+
+	val.Set("id", ret.id)
 	return ret
 }
 
 func (n *elementS) Underlying() ValueI {
 	return n.ValueI
 }
+
+func (n *elementS) BaseURI() string {
+	return n.Get("baseURI").String()
+}
+
+func arrayToObjects(o ValueI) []ValueI {
+	var out []ValueI
+	for i := 0; i < o.Length(); i++ {
+		out = append(out, o.Index(i))
+	}
+	return out
+}
+
+func nodeListToObjects(o ValueI) []ValueI {
+	if o.Get("constructor").Equal(valueS{jsValue: array}) {
+		// Support Polymer's DOM APIs, which uses Arrays instead of
+		// NodeLists
+		return arrayToObjects(o)
+	}
+	var out []ValueI
+	length := o.Get("length").Int()
+	for i := 0; i < length; i++ {
+		out = append(out, o.Call("item", i))
+	}
+	return out
+}
+
+func nodeListToNodes(o ValueI) []ElementI {
+	var out []ElementI
+	for _, obj := range nodeListToObjects(o) {
+		out = append(out, NewElement(obj))
+	}
+	return out
+}
+
+func nodeListToElements(o ValueI) []ElementI {
+	var out []ElementI
+	for _, obj := range nodeListToObjects(o) {
+		out = append(out, NewElement(obj))
+	}
+	return out
+}
+
+func (n *elementS) ChildNodes() []ElementI {
+	return nodeListToNodes(n.Get("childNodes"))
+}
+
+func (n *elementS) FirstChild() ElementI {
+	return NewElement(n.Get("firstChild"))
+
+}
+
+func (n *elementS) LastChild() ElementI {
+	return NewElement(n.Get("lastChild"))
+}
+
+func (n *elementS) NextSibling() ElementI {
+	return NewElement(n.Get("nextSibling"))
+}
+
+func (n *elementS) NodeName() string {
+	return n.Get("nodeName").String()
+}
+
+func (n *elementS) NodeType() int {
+	return n.Get("nodeType").Int()
+}
+
+func (n *elementS) NodeValue() string {
+	return n.Get("nodeValue").String()
+}
+
+func (n *elementS) SetNodeValue(s string) {
+	n.Set("nodeValue", s)
+}
+
+func (n *elementS) ParentNode() ElementI {
+	return NewElement(n.Get("parentNode"))
+}
+
+func (n *elementS) PreviousSibling() ElementI {
+	return NewElement(n.Get("previousSibling"))
+}
+
+func (n *elementS) TextContent() string {
+	return n.Get("textContent").String()
+}
+
+func (n *elementS) SetTextContent(s string) {
+	n.Set("textContent", s)
+}
+
+func (n *elementS) AppendChild(newChild ElementI) ElementI {
+	n.children[newChild.ID()] = newChild
+	n.Call("appendChild", newChild.Underlying())
+	return newChild
+}
+
+func (n *elementS) NewChild(typ string) ElementI {
+	newElement := Doc.CreateElement(typ)
+	n.AppendChild(newElement)
+	return newElement
+}
+
+func (n *elementS) Clone(deep bool) ElementI {
+	return NewElement(n.Call("cloneNode", deep))
+}
+
+func (n *elementS) CompareDocumentPosition(other ElementI) int {
+	return n.Call("compareDocumentPosition", other.Underlying()).Int()
+}
+
+func (n *elementS) Contains(other ElementI) bool {
+	return n.Call("contains", other.Underlying()).Bool()
+}
+
+func (n *elementS) HasChildNodes() bool {
+	return n.Call("hasChildNodes").Bool()
+}
+
+func (n *elementS) InsertBefore(which ElementI, before ElementI) {
+	var o interface{}
+	if before != nil {
+		o = before.Underlying()
+	}
+	n.Call("insertBefore", which.Underlying(), o)
+}
+
+func (n *elementS) IsEqualNode(other ElementI) bool {
+	return n.Call("isEqualNode", other.Underlying()).Bool()
+}
+
+func (n *elementS) LookupPrefix() string {
+	return n.Call("lookupPrefix").String()
+}
+
+func (n *elementS) Normalize() {
+	n.Call("normalize")
+}
+
+func (n *elementS) RemoveChild(other ElementI) {
+	n.Call("removeChild", other.Underlying())
+}
+
+func (n *elementS) ReplaceChild(newChild, oldChild ElementI) {
+	n.Call("replaceChild", newChild.Underlying(), oldChild.Underlying())
+}
+
+/////////////////////
+/////////////////////
+/////////////////////
+/////////////////////
+/////////////////////
+/////////////////////
 
 func (e *elementS) Attributes() map[string]string {
 	o := e.Get("attributes")
@@ -121,7 +322,11 @@ func (e *elementS) Closest(s string) ElementI {
 }
 
 func (e *elementS) ID() string {
-	return e.Get("id").String()
+	if e.id == "" {
+		e.id = e.Get("id").String()
+
+	}
+	return e.id
 }
 
 func (e *elementS) SetID(s string) {
@@ -188,12 +393,21 @@ func (e *elementS) SetOuterHTML(s string) {
 	e.Set("outerHTML", s)
 }
 
-func (s *elementS) AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI {
-	return s.ValueI.AddEventListener(typ, useCapture, listener)
+func (s *elementS) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
+	ret := s.ValueI.AddEventListener(typ, useCapture, listener)
+	s.eventListeners[ret.GetID()] = ret
+	return ret
 }
 
-func (s *elementS) RemoveEventListener(typ string, useCapture bool, listener FuncI) {
-	s.ValueI.RemoveEventListener(typ, useCapture, listener)
+func (s *elementS) RemoveEventListener(listener EventListenerI) {
+	s.ValueI.RemoveEventListener(listener)
+	delete(s.eventListeners, listener.GetID())
+}
+
+func (s *elementS) RemoveAllEventListeners() {
+	for _, eventListener := range s.eventListeners {
+		s.RemoveEventListener(eventListener)
+	}
 }
 
 func (s *elementS) DispatchEvent(event EventI) bool {
@@ -328,51 +542,4 @@ func (e *elementS) Click() {
 
 func (e *elementS) Focus() {
 	e.Call("focus")
-}
-
-func NewCssStyle(val ValueI) cssStyleS {
-	ret := cssStyleS{
-		ValueI: val,
-	}
-	return ret
-}
-
-type cssStyleS struct {
-	ValueI
-}
-
-var _ CSSStyleI = cssStyleS{}
-
-func (s cssStyleS) ToMap() map[string]string {
-	m := make(map[string]string)
-	N := s.Get("length").Int()
-	for i := 0; i < N; i++ {
-		name := s.Call("item", i).String()
-		value := s.Call("getPropertyValue", name).String()
-		m[name] = value
-	}
-
-	return m
-}
-
-func (s cssStyleS) RemoveProperty(name string) { s.Call("removeProperty", name) }
-
-func (s cssStyleS) GetPropertyValue(name string) string {
-	return s.Call("getPropertyValue", name).String()
-}
-
-func (s cssStyleS) GetPropertyPriority(name string) string {
-	return s.Call("getPropertyPriority", name).String()
-}
-
-func (s cssStyleS) SetProperty(name, value, priority string) {
-	s.Call("setProperty", name, value, priority)
-}
-
-func (s cssStyleS) Index(idx int) string {
-	return s.Call("index", idx).String()
-}
-
-func (s cssStyleS) Length() int {
-	return s.Get("length").Int()
 }

@@ -51,6 +51,8 @@ type WindowI interface {
 }
 
 type LocationI interface {
+	ValueI
+
 	Href() string
 	Protocol() string
 	Host() string
@@ -279,12 +281,12 @@ func (w *window) Stop() {
 	w.Call("stop")
 }
 
-func (s *window) AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI {
+func (s *window) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
 	return s.Underlying().AddEventListener(typ, useCapture, listener)
 }
 
-func (s *window) RemoveEventListener(typ string, useCapture bool, listener FuncI) {
-	s.Underlying().RemoveEventListener(typ, useCapture, listener)
+func (s *window) RemoveEventListener(listener EventListenerI) {
+	s.Underlying().RemoveEventListener(listener)
 }
 
 func (s *window) DispatchEvent(event EventI) bool {

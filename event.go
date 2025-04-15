@@ -23,8 +23,8 @@ type EventTargetI interface {
 	// AddEventListener adds a new event listener and returns the
 	// wrapper function it generated. If using RemoveEventListener,
 	// that wrapper has to be used.
-	AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI
-	RemoveEventListener(typ string, useCapture bool, listener FuncI)
+	AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI
+	RemoveEventListener(listener EventListenerI)
 	DispatchEvent(event EventI) bool
 }
 
@@ -57,6 +57,7 @@ func (ev eventS) Cancelable() bool {
 
 func (ev eventS) CurrentTarget() ElementI {
 	val := ev.Get("currentTarget")
+
 	return &elementS{ValueI: val}
 }
 
@@ -98,4 +99,51 @@ func (ev eventS) StopPropagation() {
 
 func (ev eventS) Underlying() ValueI {
 	return ev.ValueI
+}
+
+////
+////
+////
+////
+
+type EventListenerI interface {
+	Underlying() FuncI
+	GetID() string
+	GetType() string
+	GetCapture() bool
+}
+
+type EventTargetS struct {
+	FuncI
+	id      string
+	typ     string
+	capture bool
+}
+
+var _ EventListenerI = EventTargetS{}
+
+func NewEventListener(fn FuncI, typ string, capture bool) EventTargetS {
+	ret := EventTargetS{
+		FuncI:   fn,
+		id:      GetNextID(),
+		typ:     typ,
+		capture: capture,
+	}
+	return ret
+}
+
+func (s EventTargetS) Underlying() FuncI {
+	return s.FuncI
+}
+
+func (s EventTargetS) GetID() string {
+	return s.id
+}
+
+func (s EventTargetS) GetType() string {
+	return s.typ
+}
+
+func (s EventTargetS) GetCapture() bool {
+	return s.capture
 }

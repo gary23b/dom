@@ -62,14 +62,15 @@ func (s valueS) Type() Type {
 // It panics if v is not a JavaScript object.
 func (s valueS) Get(p string) ValueI {
 	got := s.jsValue.Get(p)
+	// fmt.Println("js.Value.Get()", p, got)
 	return valueS{jsValue: got}
 }
 
 // Set sets the JavaScript property p of value v to ValueOf(x).
 // It panics if v is not a JavaScript object.
 func (s valueS) Set(p string, x any) {
-	x = ValueOf(x)
-	s.jsValue.Set(p, x)
+	valConverted := ValueOf(x)
+	s.jsValue.Set(p, valConverted.jsValue)
 }
 
 // Delete deletes the JavaScript property p of value v.
@@ -102,7 +103,8 @@ func (s valueS) Length() int {
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (s valueS) Call(m string, args ...any) ValueI {
 	convertedArgs := convertArgsToJsValue(args)
-	got := s.jsValue.Call(m, convertedArgs)
+	// fmt.Println(m, args, convertedArgs)
+	got := s.jsValue.Call(m, convertedArgs...)
 	return valueS{jsValue: got}
 }
 
@@ -111,7 +113,7 @@ func (s valueS) Call(m string, args ...any) ValueI {
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (s valueS) Invoke(args ...any) ValueI {
 	convertedArgs := convertArgsToJsValue(args)
-	got := s.jsValue.Invoke(convertedArgs)
+	got := s.jsValue.Invoke(convertedArgs...)
 	return valueS{jsValue: got}
 }
 
@@ -120,7 +122,8 @@ func (s valueS) Invoke(args ...any) ValueI {
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (s valueS) New(args ...any) ValueI {
 	convertedArgs := convertArgsToJsValue(args)
-	got := s.jsValue.New(convertedArgs)
+	// fmt.Println("new", args, convertedArgs)
+	got := s.jsValue.New(convertedArgs...)
 	return valueS{jsValue: got}
 }
 
@@ -164,7 +167,7 @@ func (s valueS) InstanceOf(t ValueI) bool {
 	return s.jsValue.InstanceOf(other.jsValue)
 }
 
-func (s valueS) AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI {
+func (s valueS) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
 	wrapperJsFunc := NewFuncForJavascript(func(this ValueI, args []ValueI) any {
 		arg := args[0]
 		var e *eventS
@@ -177,13 +180,16 @@ func (s valueS) AddEventListener(typ string, useCapture bool, listener func(Even
 	})
 
 	s.Call("addEventListener", typ, wrapperJsFunc, useCapture)
-	return wrapperJsFunc
+
+	ret := NewEventListener(wrapperJsFunc, typ, useCapture)
+	return ret
 }
 
-func (s valueS) RemoveEventListener(typ string, useCapture bool, listener FuncI) {
-	value := listener.(*funcS)
-	s.Call("removeEventListener", typ, value.Func, useCapture)
-	listener.Release()
+func (s valueS) RemoveEventListener(listener EventListenerI) {
+	fn := listener.Underlying()
+	value := fn.(*funcS)
+	s.Call("removeEventListener", listener.GetType(), value.Func, listener.GetCapture())
+	fn.Release()
 }
 
 func (s valueS) DispatchEvent(event EventI) bool {
@@ -194,19 +200,35 @@ func (s valueS) DispatchEvent(event EventI) bool {
 //
 //
 
-func convertArgsToJsValue(args ...any) []js.Value {
-	ret := make([]js.Value, len(args), 0)
+func convertArgsToJsValue(args []any) []any {
+	ret := make([]any, 0, len(args))
+
+	// fmt.Printf("args, %d, %#v\n", len(args), args)
 
 	for _, arg := range args {
-		val := ValueOf(arg)
-		ret = append(ret, val.jsValue)
+		switch v := arg.(type) {
+		case funcS:
+			ret = append(ret, v.Func)
+		case *funcS:
+			if v == nil {
+				ret = append(ret, valueS{jsValue: null})
+			} else {
+				ret = append(ret, v.Func)
+			}
+
+		default:
+			// fmt.Printf("arg, %#v\n", arg)
+			val := ValueOf(arg)
+			// fmt.Printf("arg, %#v = %#v\n", arg, val.jsValue)
+			ret = append(ret, val.jsValue)
+		}
 	}
 
 	return ret
 }
 
 // ValueOf returns the Go value as a new value.
-func ValueOf(i interface{}) valueS {
+func ValueOf(i any) valueS {
 	switch v := i.(type) {
 	case nil:
 		return valueS{jsValue: null}
@@ -237,6 +259,7 @@ func valueOf(v reflect.Value) js.Value {
 	case reflect.Struct:
 		return valueOfStruct(v)
 	default:
+		// fmt.Printf("choosing default\n")
 		return js.ValueOf(v.Interface())
 	}
 }
@@ -256,7 +279,7 @@ func valueOfSliceOrArray(v reflect.Value) js.Value {
 	}
 	a := array.New()
 	n := v.Len()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		e := v.Index(i)
 		a.SetIndex(i, valueOf(e))
 	}
@@ -283,7 +306,7 @@ func valueOfStruct(v reflect.Value) js.Value {
 	t := v.Type()
 	s := object.New()
 	n := v.NumField()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if f := v.Field(i); f.CanInterface() {
 			k := nameOf(t.Field(i))
 			s.Set(k, valueOf(f))

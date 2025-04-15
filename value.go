@@ -88,10 +88,10 @@ type ValueI interface {
 	InstanceOf(t ValueI) bool
 
 	// Add an event listener to things that can do that such as the window and html elements
-	AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI
+	AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI
 
 	// remove an event listener to things that they have been added to before
-	RemoveEventListener(typ string, useCapture bool, listener FuncI)
+	RemoveEventListener(listener EventListenerI)
 
 	// Send an event to trigger event listeners for things that can have listeners
 	DispatchEvent(event EventI) bool

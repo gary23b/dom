@@ -3,14 +3,8 @@ package dom
 import "time"
 
 type DocumentI interface {
-	NodeI
-
-	Async() bool
-	SetAsync(bool)
 	DocumentElement() ElementI
 	DocumentURI() string
-	AdoptNode(node NodeI) NodeI
-	ImportNode(node NodeI, deep bool) NodeI
 	CreateElement(name string) ElementI
 	ElementFromPoint(x, y int) ElementI
 	EnableStyleSheetsForSet(name string)
@@ -80,14 +74,14 @@ func (d documentS) SelectedStyleSheetSet() string {
 	return d.Get("selectedStyleSheetSet").String()
 }
 
-func (d documentS) AdoptNode(node NodeI) NodeI {
+func (d documentS) AdoptNode(node ElementI) ElementI {
 	val := d.Call("adoptNode", node.Underlying())
-	return NewNode(val)
+	return NewElement(val)
 }
 
-func (d documentS) ImportNode(node NodeI, deep bool) NodeI {
+func (d documentS) ImportNode(node ElementI, deep bool) ElementI {
 	val := d.Call("importNode", node.Underlying(), deep)
-	return NewNode(val)
+	return NewElement(val)
 }
 
 func (d documentS) CreateElement(name string) ElementI {
@@ -122,12 +116,12 @@ func (d documentS) QuerySelectorAll(sel string) []ElementI {
 	return d.ElementI.QuerySelectorAll(sel)
 }
 
-func (s *documentS) AddEventListener(typ string, useCapture bool, listener func(EventI)) FuncI {
+func (s *documentS) AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI {
 	return s.ValueI.AddEventListener(typ, useCapture, listener)
 }
 
-func (s *documentS) RemoveEventListener(typ string, useCapture bool, listener FuncI) {
-	s.ValueI.RemoveEventListener(typ, useCapture, listener)
+func (s *documentS) RemoveEventListener(listener EventListenerI) {
+	s.ValueI.RemoveEventListener(listener)
 }
 
 func (s *documentS) DispatchEvent(event EventI) bool {
