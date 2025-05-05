@@ -23,6 +23,7 @@ type EventTargetI interface {
 	// AddEventListener adds a new event listener and returns the
 	// wrapper function it generated. If using RemoveEventListener,
 	// that wrapper has to be used.
+	// The listener is called in a new goroutine.
 	AddEventListener(typ string, useCapture bool, listener func(EventI)) EventListenerI
 	RemoveEventListener(listener EventListenerI)
 	DispatchEvent(event EventI) bool

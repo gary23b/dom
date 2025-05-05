@@ -175,7 +175,7 @@ func (s valueS) AddEventListener(typ string, useCapture bool, listener func(Even
 			jsArg := arg.(valueS)
 			e = &eventS{ValueI: valueS{jsValue: jsArg.jsValue}}
 		}
-		listener(e)
+		go listener(e)
 		return nil
 	})
 
