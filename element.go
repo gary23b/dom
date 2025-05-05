@@ -12,6 +12,8 @@ type ElementI interface {
 	Underlying() ValueI
 
 	// node
+	Remove()
+	RemoveChildren()
 	BaseURI() string
 	ChildNodes() []ElementI
 	FirstChild() ElementI
@@ -53,7 +55,7 @@ type ElementI interface {
 	Matches(string) bool
 	QuerySelector(string) ElementI
 	QuerySelectorAll(string) []ElementI
-	Remove()
+
 	RemoveAttribute(name string)
 	SetAttribute(name string, value string)
 	InnerHTML() string
@@ -100,7 +102,7 @@ func GetNextID() string {
 type elementS struct {
 	ValueI
 	id             string
-	children       map[string]ElementI
+	children       []ElementI
 	eventListeners map[string]EventListenerI
 }
 
@@ -111,11 +113,27 @@ func NewElement(val ValueI) *elementS {
 		ValueI:         val,
 		eventListeners: map[string]EventListenerI{},
 		id:             GetNextID(),
-		children:       map[string]ElementI{},
+		children:       []ElementI{},
 	}
 
 	val.Set("id", ret.id)
 	return ret
+}
+
+func (s *elementS) Remove() {
+	for _, child := range s.children {
+		child.Remove()
+	}
+	s.children = []ElementI{}
+	s.RemoveAllEventListeners()
+	s.Call("remove")
+}
+
+func (n *elementS) RemoveChildren() {
+	for _, child := range n.children {
+		child.Remove()
+	}
+	n.children = []ElementI{}
 }
 
 func (n *elementS) Underlying() ValueI {
@@ -128,7 +146,7 @@ func (n *elementS) BaseURI() string {
 
 func arrayToObjects(o ValueI) []ValueI {
 	var out []ValueI
-	for i := 0; i < o.Length(); i++ {
+	for i := range o.Length() {
 		out = append(out, o.Index(i))
 	}
 	return out
@@ -142,16 +160,8 @@ func nodeListToObjects(o ValueI) []ValueI {
 	}
 	var out []ValueI
 	length := o.Get("length").Int()
-	for i := 0; i < length; i++ {
+	for i := range length {
 		out = append(out, o.Call("item", i))
-	}
-	return out
-}
-
-func nodeListToNodes(o ValueI) []ElementI {
-	var out []ElementI
-	for _, obj := range nodeListToObjects(o) {
-		out = append(out, NewElement(obj))
 	}
 	return out
 }
@@ -165,16 +175,21 @@ func nodeListToElements(o ValueI) []ElementI {
 }
 
 func (n *elementS) ChildNodes() []ElementI {
-	return nodeListToNodes(n.Get("childNodes"))
+	return n.children
 }
 
 func (n *elementS) FirstChild() ElementI {
-	return NewElement(n.Get("firstChild"))
-
+	if len(n.children) == 0 {
+		return nil
+	}
+	return n.children[0]
 }
 
 func (n *elementS) LastChild() ElementI {
-	return NewElement(n.Get("lastChild"))
+	if len(n.children) == 0 {
+		return nil
+	}
+	return n.children[len(n.children)-1]
 }
 
 func (n *elementS) NextSibling() ElementI {
@@ -214,7 +229,7 @@ func (n *elementS) SetTextContent(s string) {
 }
 
 func (n *elementS) AppendChild(newChild ElementI) ElementI {
-	n.children[newChild.ID()] = newChild
+	n.children = append(n.children, newChild)
 	n.Call("appendChild", newChild.Underlying())
 	return newChild
 }
@@ -280,7 +295,7 @@ func (e *elementS) Attributes() map[string]string {
 	o := e.Get("attributes")
 	attrs := map[string]string{}
 	length := o.Get("length").Int()
-	for i := 0; i < length; i++ {
+	for i := range length {
 		item := o.Call("item", i)
 		attrs[item.Get("name").String()] = item.Get("value").String()
 	}
@@ -355,10 +370,6 @@ func (e *elementS) QuerySelector(s string) ElementI {
 
 func (e *elementS) QuerySelectorAll(s string) []ElementI {
 	return nodeListToElements(e.Call("querySelectorAll", s))
-}
-
-func (e *elementS) Remove() {
-	e.Call("remove")
 }
 
 func (e *elementS) RemoveAttribute(s string) {
